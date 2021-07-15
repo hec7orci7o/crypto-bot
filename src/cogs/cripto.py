@@ -1,23 +1,24 @@
-from discord import embeds
-from libs.CoinMarketCap import CMC, Help
+from libs.CoinMarketCap import CMC
+from libs.ETHGasStation import ETH
+from libs.Pretty import Format
 from discord.ext import commands
 from discord.ext.commands import MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError
 
 class Cripto(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.cmc = CMC()
+        self.eth = ETH()
+        self.f   = Format()
 
-    @commands.command()
+    @commands.command(help="Usage: `$currency <symbol>* <fiat>`\nExample: `$currency BTC USD`")
     async def currency(self, ctx, symbol:str, converter:str='USD'):
         symbol, converter = symbol.upper(), converter.upper()
-        try: 
-            cmc = CMC()
-
-            cData = cmc.quotes_latest(symbol=symbol, convert=converter)
+        try:
+            cData = self.cmc.quotes_latest(symbol=symbol, convert=converter)
             
             if 'data' in cData.keys():
-                hp = Help()
-                embed = hp.currencyEmbed(cData['data'][symbol], symbol, converter, cmc.Fiat)
+                embed = self.f.currencyEmbed(cData['data'][symbol], symbol, converter, self.cmc.Fiat)
                 await ctx.send(embed= embed)
             else:
                 # embed = currencyEmbed(cData)
@@ -25,34 +26,17 @@ class Cripto(commands.Cog):
         except (MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError) as e:
             print(e)
 
-    @commands.command()
-    async def fiat(self, ctx, fiat:str):
-        fiat = fiat.upper()
-        try:
-            cmc = CMC()
-            fiat_dict =  cmc.fiat(fiat)
-
-            hp = Help()
-            embed = hp.fiatEmbed(fiat ,fiat_dict[fiat])
-
-            await ctx.send(embed = embed)
-        except (MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError) as e:
-            print(e)
-
-    @commands.command()
+    @commands.command(help="Usage: `$hot <limit:[1-3]>* <fiat>`\nExample: `$hot 1 USD`")
     async def hot(self, ctx, limit:int, converter:str='USD'):
         try:
-            if limit <= 5:
-                cmc = CMC()
-                cData = cmc.listing_latest(limit=limit)
+            if limit <= 3:
+                cData = self.cmc.listing_latest(limit=limit)
 
                 if 'data' in cData.keys():
-                    import pprint
-                    pprint.pprint(cData)
-                    hp = Help()
-                    fiatSym = cmc.Fiat[converter]['SYMBOL']
-                    embed = hp.hotEmbed(cData['data'][0], cData['data'][0]['symbol'], converter, fiatSym)
-                    await ctx.send(embed= embed)
+                    fiatSym = self.cmc.Fiat[converter]['SYMBOL']
+                    embed_list = self.f.hotEmbed(cData['data'], converter, fiatSym)
+                    for embed in embed_list:
+                        await ctx.send(embed= embed)
                 else:
                     # embed = currencyEmbed(cData)
                     await ctx.send("status")
@@ -60,8 +44,25 @@ class Cripto(commands.Cog):
                 await ctx.send("te viniste arriba con el limite")
         except (MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError) as e:
             print(e)
-        
 
+    @commands.command(help="Usage: `$fiat <fiat>*`\nExample: `$fiat EUR`")
+    async def fiat(self, ctx, fiat:str):
+        fiat = fiat.upper()
+        try:
+            fiat_dict =  self.cmc.fiat(fiat)
+            embed = self.f.fiatEmbed(fiat ,fiat_dict[fiat])
+            await ctx.send(embed = embed)
+        except (MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError) as e:
+            print(e)
+
+    @commands.command(help="Usage: `$gas`\nExample: `$gas`")
+    async def gas(self, ctx):
+        try:
+            sData = self.eth.gasPrice()
+            embed = self.f.ethGasPriceEmbed(sData)
+            await ctx.send(embed= embed)
+        except (MissingRequiredArgument, TooManyArguments, BadArgument, BadUnionArgument, ArgumentParsingError) as e:
+            print(e)
 
 def setup(bot):
     bot.add_cog(Cripto(bot))
