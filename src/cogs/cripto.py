@@ -28,6 +28,9 @@ class Cripto(commands.Cog):
 
     @commands.command(help="Usage: `$hot <limit:[1-3]>* <fiat>`\nExample: `$hot 1 USD`")
     async def hot(self, ctx, limit:int, converter:str='USD'):
+        converter = converter.upper()
+        converter = 'USD'
+
         try:
             if limit <= 3:
                 cData = self.cmc.listing_latest(limit=limit)
